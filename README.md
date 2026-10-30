@@ -73,7 +73,7 @@ start + destination (search / preset / map click)
 
   Each one gives the distance, the reasons and advice.
 - **Speeding** (limit + 10 km/h) raises the level by one step.
-- **Voice:** French, Arabic or English.
+- **Language:** Arabic (default, right to left), French or English, from the *Language* buttons. The notification only shows the risk (spot + distance) and the action (speed + one tip, or the weather when it raises the risk); 🔊 Voice reads the same words.
 
 ## API
 | Method | Path | Input | Output |
@@ -104,7 +104,7 @@ risk = requests.post(f"{B}/risk", json={"segments": segs, "datetime": "2026-10-3
 ## 2-minute demo
 1. **Search a route:** *From* "Blida", *To* "Chréa" (press Enter and pick each place), or load the **Mountain road** preset.
 2. **Day vs night:** click **14:00**, then **02:00**. The road turns orange and red, and the phone shows "Whole route ×N now: late at night".
-3. **Drive:** press ▶ at 5×. Before each curve or junction, the phone slides in a notification with the distance, the reasons and advice.
+3. **Drive:** press ▶ at 5×. Before each curve or junction, the phone slides in a short notification, for example "منعطف يساراً بعد 200 م · خفّف إلى 50 🌧 طريق مبلل". Switch Arabic / Français / English with the Language buttons.
 4. **Weather:** choose **🔁 Demo: change every 5 s**. The colours and warnings update live.
 5. **Behaviour:** set the driver to **Speeding +30%**. The level goes up one step.
 6. **Explain:** click a red segment to see the model ×, the weather × and the top factors.

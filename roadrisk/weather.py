@@ -86,24 +86,24 @@ def status(rows, when, rule):
     parts = []                                                  # (words, advice, added risk)
     vis = now["vis"] if now["vis"] is not None else 20000
     if now["snow"] > 0 or now["code"] in SNOW_CODES:
-        parts.append(("snow", "Brake gently, no sudden moves", rule["snow_heavy"] if now["snow"] >= 1 else rule["snow"]))
+        parts.append(("snow", "snow", "Brake gently, no sudden moves", rule["snow_heavy"] if now["snow"] >= 1 else rule["snow"]))
     elif now["rain"] >= 0.1:
         add = rule["rain_heavy"] if now["rain"] >= 4 else rule["rain"] if now["rain"] >= 1 else rule["rain_light"]
         if spell >= 3:
             add += rule["long_spell"]
-        words = "heavy rain" if now["rain"] >= 4 else "wet road"
+        key, words = ("heavy", "heavy rain") if now["rain"] >= 4 else ("rain", "wet road")
         if spell <= 2 and dry_before >= 48:
             add += rule["first_rain"]
-            words = "first rain, slippery road"
-        parts.append((words, "Keep double distance", add))
+            key, words = "first_rain", "first rain, slippery road"
+        parts.append((key, words, "Keep double distance", add))
     elif since is not None and since <= 2:
-        parts.append(("road still wet", "Keep double distance", rule["still_wet"]))
+        parts.append(("still_wet", "road still wet", "Keep double distance", rule["still_wet"]))
     if vis < 1000 or now["code"] in FOG_CODES:
-        parts.append(("fog", "Low beams on, slow down", rule["fog_dense"] if vis < 200 else rule["fog"]))
+        parts.append(("fog", "fog", "Low beams on, slow down", rule["fog_dense"] if vis < 200 else rule["fog"]))
     if now["gust"] >= 60 or now["code"] in STORM_CODES:
-        parts.append(("strong wind", "Hold the wheel firmly", rule["wind"]))
+        parts.append(("wind", "strong wind", "Hold the wheel firmly", rule["wind"]))
 
-    add = min(rule["cap"] - 1, sum(p[2] for p in parts))
+    add = min(rule["cap"] - 1, sum(p[3] for p in parts))
     if now["snow"] > 0 or now["code"] in SNOW_CODES:
         icon, label = "❄️", "Snow"
     elif now["rain"] >= 4:
@@ -122,5 +122,5 @@ def status(rows, when, rule):
         "spell_h": spell, "since_rain_h": since, "rain_in_h": next_rain,
         "factor": round(1 + add, 2),
         "factor_hard": round(min(rule["cap"], 1 + add * rule["hard_mult"]), 2),   # curves and slopes
-        "reasons": [{"words": w, "todo": t} for w, t, _ in parts],
+        "reasons": [{"key": k, "words": w, "todo": t} for k, w, t, _ in parts],   # key -> translations in shared.js
     }

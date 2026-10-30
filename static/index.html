@@ -48,17 +48,18 @@
   #wxnow { text-align:center; margin-top:10px; font-size:12px; color:var(--muted); padding:0 12px; }
   #general { margin:12px 12px 0; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,.08); font-size:12px; display:none; }
   #ok { text-align:center; margin-top:18px; font-size:13px; color:#2ecc71; }
-  #notif { position:absolute; left:8px; right:8px; top:36px; background:rgba(250,250,252,.96); color:#111; border-radius:18px;
-           padding:11px 13px; box-shadow:0 8px 24px rgba(0,0,0,.35); transform:translateY(-140%); opacity:0;
-           transition:transform .35s cubic-bezier(.2,.9,.3,1.2), opacity .25s; z-index:2; }
+  #notif { position:absolute; left:8px; right:8px; top:36px; background:rgba(246,246,248,.97); color:#111; border-radius:16px;
+           padding:10px 12px; display:flex; gap:10px; align-items:center; box-shadow:0 8px 24px rgba(0,0,0,.35);
+           transform:translateY(-140%); opacity:0; transition:transform .35s cubic-bezier(.2,.9,.3,1.2), opacity .25s; z-index:2; }
   #notif.show { transform:translateY(0); opacity:1; }
-  #notif .app { display:flex; align-items:center; gap:6px; font-size:11px; color:#666; }
-  #notif .dot { width:16px; height:16px; border-radius:5px; display:grid; place-items:center; color:#fff; font-size:10px; }
-  #notif .title { font-size:16px; font-weight:700; margin:6px 0 2px; }
-  #notif .body { font-size:13px; color:#333; }
-  #notif .todo { font-size:13px; font-weight:600; margin-top:6px; }
-  #notif .bar { height:5px; background:#e3e3e8; border-radius:3px; margin-top:9px; overflow:hidden; }
-  #notif .bar i { display:block; height:100%; border-radius:3px; transition:width .2s linear; }
+  #notif .ic { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:#fff; font-size:18px; flex:none; }
+  #notif .txt { flex:1; min-width:0; }
+  #notif .title { font-size:15px; font-weight:700; line-height:1.3; }
+  #notif .act { font-size:13px; color:#444; margin-top:2px; line-height:1.3; }
+  #notif .bar { height:3px; background:#ddd; border-radius:2px; margin-top:7px; overflow:hidden; }
+  #notif .bar i { display:block; height:100%; border-radius:2px; transition:width .2s linear; }
+  #screen[dir=rtl] { font-family:"Noto Sans Arabic",Tahoma,system-ui,sans-serif; }
+  #screen[dir=rtl] #notif .title { font-size:16px; } #screen[dir=rtl] #notif .act { font-size:14px; }
   .car { width:30px; height:30px; }
   .legend span { display:inline-block; width:12px; height:12px; border-radius:2px; margin:0 3px 0 8px; vertical-align:-1px; }
   .hint { color:var(--muted); font-size:12px; }
@@ -67,12 +68,12 @@
 </head>
 <body>
 <div id="mapwrap"><div id="map"></div>
-  <div id="phone"><div id="screen">
+  <div id="phone"><div id="screen" dir="rtl">
     <div id="notch"></div>
     <div id="sbar"><span id="clock">--:--</span><span><span id="wxicon">☀️</span> 4G</span></div>
-    <div id="notif"><div class="app"><span class="dot" id="ndot">!</span>ROAD RISK · now</div>
-      <div class="title" id="ntitle"></div><div class="body" id="nbody"></div><div class="todo" id="ntodo"></div><div class="bar"><i id="nbar"></i></div></div>
-    <div id="speedo"><b id="kmh">0</b><span>km/h · limit <span id="lim">–</span></span></div>
+    <div id="notif"><div class="ic" id="nicon">!</div>
+      <div class="txt"><div class="title" id="ntitle"></div><div class="act" id="nact"></div><div class="bar"><i id="nbar"></i></div></div></div>
+    <div id="speedo"><b id="kmh">0</b><span>km/h · <span id="limLbl">limit</span> <span id="lim">–</span></span></div>
     <div id="wxnow"></div>
     <div id="general"></div>
     <div id="ok">✓ Road ahead looks normal</div>
@@ -99,7 +100,8 @@
   <div class="row">Weather <select id="weather"><option value="live">Live (Open-Meteo)</option><option value="clear">☀️ Clear</option><option value="rain">🌧 Rain</option><option value="heavy">⛈ Heavy rain</option><option value="fog">🌫 Fog</option><option value="snow">❄️ Snow</option><option value="cycle">🔁 Demo: change every 5 s</option></select></div>
   <div id="wxcard" class="hint">Load a route to get the weather.</div>
   <div class="row">Model <select id="model"></select></div>
-  <div class="row">Voice <select id="lang"><option value="off">Off</option><option value="fr">Français</option><option value="ar">العربية</option><option value="en">English</option></select></div>
+  <div class="row">Language <span class="seg" id="lang"><button data-v="ar" class="on">العربية</button><button data-v="fr">Français</button><button data-v="en">English</button></span>
+    <label><input type="checkbox" id="voice"> 🔊 Voice</label></div>
 
   <h2>Current risk</h2>
   <div id="risknow"><span class="big" id="xnow">–</span><span id="lvlnow"></span></div>
@@ -123,7 +125,7 @@ const $ = id => document.getElementById(id);
 const LEVEL_NAMES = ["Low", "Medium", "High", "Very high"];
 let CFG = null, ROUTE = null, RISK = null, LINE = null;
 let segLayers = [], carMarker = null, routeBounds = null;
-let state = { mult: 1, behavior: "normal", playing: false };
+let state = { mult: 1, behavior: "normal", playing: false, lang: "ar" };
 let WX = null;   // weather status for the route (fixed rule, not the model)
 let car = null, lastSpoken = -1;
 
@@ -376,31 +378,6 @@ function displayed(i, speedKmh) { // model level + personal speeding rule
   return { level: Math.min(3, r.level + (over ? 1 : 0)), over, vma };
 }
 
-function mainReason(i) {
-  const f = ROUTE.segments[i].features, r = RISK.segments[i];
-  const top = r.top_reasons.map(t => t.feature);
-  if (f.plan !== 1 && (top.includes("plan") || Math.abs(ROUTE.segments[i].turn) > 30)) return f.plan === 4 ? "sbend" : "curve";
-  if (f.int === 8) return "rail";
-  if (f.int === 6) return "roundabout";
-  if (f.int !== 1 && top.includes("int")) return "junction";
-  if (r.is_dark && top.includes("is_dark")) return "night";
-  if (f.prof === 3 || f.prof === 4 || (f.prof === 2 && top.includes("prof"))) return "slope";
-  if (top.includes("vma")) return "speedlimit";
-  if (f.plan !== 1) return f.plan === 4 ? "sbend" : "curve";
-  return "generic";
-}
-const TXT = {
-  en: { curve: "Dangerous curve", sbend: "Dangerous bends", rail: "Railway crossing", roundabout: "Roundabout", junction: "Dangerous junction",
-        night: "High-risk zone at night", slope: "Dangerous slope", speedlimit: "High-speed risk zone", generic: "High-risk section",
-        msg: (w, d, x, v) => `${w} in ${d} m, risk ×${x}. Slow down to ${v} km/h.`, rain: "Wet road.", fast: "You are speeding." },
-  fr: { curve: "Virage dangereux", sbend: "Virages dangereux", rail: "Passage à niveau", roundabout: "Rond-point", junction: "Carrefour dangereux",
-        night: "Zone à risque la nuit", slope: "Pente dangereuse", speedlimit: "Zone à risque de vitesse", generic: "Section à risque",
-        msg: (w, d, x, v) => `${w} dans ${d} mètres, risque multiplié par ${x}. Ralentissez à ${v} kilomètres heure.`, rain: "Chaussée mouillée.", fast: "Vous roulez trop vite." },
-  ar: { curve: "منعطف خطير", sbend: "منعطفات خطيرة", rail: "ممر سكة حديد", roundabout: "دوار", junction: "تقاطع خطير",
-        night: "منطقة خطيرة ليلاً", slope: "منحدر خطير", speedlimit: "منطقة سرعة خطيرة", generic: "مقطع خطير",
-        msg: (w, d, x, v) => `${w} بعد ${d} متر، الخطر مضاعف ${x} مرات. خفف السرعة إلى ${v} كيلومتر في الساعة.`, rain: "الطريق مبلل.", fast: "أنت تسرع." },
-};
-
 // Warnings are for SPOTS: risky stretches that stand out from the rest of the route (a curve,
 // a junction, a peak). A risk that covers the whole route (night, weekend...) is shown once
 // on the phone's home screen instead of repeating the same notification.
@@ -412,22 +389,24 @@ function findSpots() {
   let cur = null;
   ROUTE.segments.forEach((sg, i) => {
     const r = RISK.segments[i];
-    const hot = r.level >= CFG.warning_min_level && (hazard(sg.features) !== "Risky stretch" || r.x >= 1.3 * BASE);
+    const hot = r.level >= CFG.warning_min_level && (hazardKey(sg.features) || r.x >= 1.3 * BASE);
     if (hot && cur && i === cur.i1 + 1) { cur.i1 = i; if (r.x > RISK.segments[cur.peak].x) cur.peak = i; }
     else if (hot) { cur = { i0: i, i1: i, peak: i }; SPOTS.push(cur); }
   });
   SPOTS.forEach(sp => {   // name the spot after its most specific road feature
-    for (let k = sp.i0; k <= sp.i1; k++) { const n = hazard(ROUTE.segments[k].features); if (n !== "Risky stretch") { sp.name = n; break; } }
-    sp.name = sp.name || "Risk peak";
+    for (let k = sp.i0; k <= sp.i1 && !sp.key; k++) sp.key = hazardKey(ROUTE.segments[k].features);
+    sp.key = sp.key || "risky";
   });
-  const g = $("general"), lvl = levelOf(BASE, CFG.levels);
-  if (lvl >= CFG.warning_min_level) {
-    const r = RISK.segments[Math.floor(RISK.segments.length / 2)];
-    const words = [...new Set(r.top_reasons.filter(t => TIME_F.has(t.feature)).map(t => factor(t, r.model_features)).filter(Boolean).map(x => x[0]))];
-    if (WX && WX.factor > 1) WX.reasons.forEach(x => words.push(x.words));
-    g.innerHTML = `<b style="color:${levelColor(lvl)}">Whole route ×${BASE.toFixed(1)}</b> now: ${words.join(", ") || "higher risk"}. Drive carefully.`;
-    g.style.display = "block";
-  } else g.style.display = "none";
+  showGeneral();
+}
+function showGeneral() {
+  const g = $("general"), lvl = levelOf(BASE, CFG.levels), L = tr(state.lang);
+  if (lvl < CFG.warning_min_level) { g.style.display = "none"; return; }
+  const r = RISK.segments[Math.floor(RISK.segments.length / 2)];
+  const words = r.top_reasons.filter(t => TIME_F.has(t.feature)).map(t => factor(t, r.model_features, state.lang)).filter(Boolean).map(x => x[0]);
+  if (WX && WX.factor > 1) WX.reasons.forEach(x => words.push(L.f[x.key][0]));
+  g.innerHTML = `<b style="color:${levelColor(lvl)}">${L.whole(BASE.toFixed(1), [...new Set(words)].slice(0, 2).join(state.lang === "ar" ? "، " : ", "))}</b>`;
+  g.style.display = "block";
 }
 function checkWarning() {
   const speedKmh = car.v * 3.6, i = segAt(car.s), disp = displayed(i, speedKmh);
@@ -447,44 +426,47 @@ function advisedSpeed(i) {
   return Math.max(20, Math.floor(v / 10) * 10);
 }
 
+// Notification = the risk (spot + distance) and what to do (speed + one action).
+// Weather is added only when it raises the risk at that spot.
 function showWarning(w) {
-  const N = $("notif");
+  const N = $("notif"), L = tr(state.lang);
   if (!w) { N.classList.remove("show"); $("ok").style.visibility = "visible"; return; }
-  const r = RISK.segments[w.i], f = ROUTE.segments[w.i].features, color = levelColor(w.level), v = advisedSpeed(w.i);
-  const general = levelOf(BASE, CFG.levels) >= CFG.warning_min_level;
-  const fs = r.top_reasons.filter(t => !(general && TIME_F.has(t.feature))).map(t => factor(t, r.model_features)).filter(Boolean);
-  if (r.wx > 1) WX.reasons.forEach(x => fs.push([x.words, x.todo]));
-  if (w.over) fs.unshift(["your speed", null]);
-  const words = [...new Set(fs.map(x => x[0]))].slice(0, 3), todo = [...new Set(fs.map(x => x[1]).filter(Boolean))].slice(0, 2);
-  const name = w.spot ? w.spot.name : `Speeding: limit ${f.vma}`, d = Math.round(w.d / 10) * 10;
-  $("ndot").style.background = color;
-  $("ntitle").textContent = !w.spot || w.d < 15 ? `${name} — now` : `${name} in ${d} m`;
-  $("nbody").textContent = `${w.level >= 3 ? "Danger" : "Caution"} ×${r.x.toFixed(1)}: ${words.join(", ") || "high-risk section"}.`;
-  $("ntodo").textContent = `→ ${v} km/h max` + (todo.length ? " · " + todo.join(" · ") : "");
+  const r = RISK.segments[w.i], color = levelColor(w.level), v = advisedSpeed(w.i);
+  const key = w.spot ? w.spot.key : "speeding", name = L.spot[key];
+  const title = !w.spot || w.d < 15 ? L.now(name) : L.in(name, Math.round(w.d / 10) * 10);
+  let act = L.slow(v), say = act;
+  const wxr = r.wx > 1 && WX.reasons[0];
+  if (wxr) { act += ` ${WX.icon} ${L.f[wxr.key][0]}`; say += `. ${L.f[wxr.key][0]}`; }
+  else {
+    const tip = r.top_reasons.filter(t => !TIME_F.has(t.feature)).map(t => factor(t, r.model_features, state.lang)).find(x => x && x[1]);
+    if (tip) { act += ` · ${tip[1]}`; say += `. ${tip[1]}`; }
+  }
+  $("nicon").textContent = HAZARD_ICON[key]; $("nicon").style.background = color;
+  $("ntitle").textContent = title; $("nact").textContent = act;
   $("nbar").style.width = `${100 - Math.min(100, w.d / CFG.warning_distance_m * 100)}%`;
   $("nbar").style.background = color;
   $("ok").style.visibility = "hidden";
   N.classList.add("show");
-  // speak once per warning zone
-  const lang = $("lang").value, key = mainReason(w.i), x = r.x.toFixed(1), wet = WX && r.wx > 1 && /rain|wet/.test(WX.reasons.map(q => q.words).join());
-  if (lang !== "off" && "speechSynthesis" in window && Math.abs(w.i - lastSpoken) > 6 && state.playing) {
+  // speak once per spot, in the same words
+  if ($("voice").checked && "speechSynthesis" in window && Math.abs(w.i - lastSpoken) > 6 && state.playing) {
     lastSpoken = w.i;
-    const L2 = TXT[lang]; let txt = L2.msg(L2[key], Math.round(w.d / 50) * 50, x.replace(".", lang === "fr" ? "," : "."), v);
-    if (w.over) txt = L2.fast + " " + txt;
-    if (wet) txt = L2.rain + " " + txt;
-    const u = new SpeechSynthesisUtterance(txt);
-    u.lang = { fr: "fr-FR", ar: "ar-SA", en: "en-US" }[lang];
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
+    const u = new SpeechSynthesisUtterance(`${title}. ${say}`);
+    u.lang = L.voice; speechSynthesis.cancel(); speechSynthesis.speak(u);
   }
 }
+const WX_LABEL = { ar: { Clear: "صحو", Rain: "مطر", "Heavy rain": "أمطار غزيرة", Fog: "ضباب", Snow: "ثلج", "Wet after rain": "مبلل بعد المطر" },
+                   fr: { Clear: "Dégagé", Rain: "Pluie", "Heavy rain": "Forte pluie", Fog: "Brouillard", Snow: "Neige", "Wet after rain": "Mouillé après la pluie" } };
 function phoneStatus(seg) {
+  const L = tr(state.lang);
+  $("screen").dir = L.dir;
   $("kmh").textContent = Math.round(car.v * 3.6);
-  $("lim").textContent = seg.features.vma;
+  $("lim").textContent = seg.features.vma; $("limLbl").textContent = L.limit;
+  $("ok").textContent = L.normal;
   const t = new Date(new Date($("dt").value).getTime() + car.simT * 1000);
   $("clock").textContent = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
   $("wxicon").textContent = WX ? WX.icon : "–";
-  $("wxnow").textContent = WX ? `${WX.icon} ${WX.label}` + (WX.factor > 1 ? ` · risk +${Math.round((WX.factor - 1) * 100)}%` : " · no weather effect")
-                               : "⚠ Weather unavailable (restart the server?)";
+  const lbl = WX && ((WX_LABEL[state.lang] || {})[WX.label] || WX.label);
+  $("wxnow").textContent = WX ? `${WX.icon} ${lbl}` + (WX.factor > 1 ? ` · +${Math.round((WX.factor - 1) * 100)}%` : ` · ${L.noWx}`) : L.wxOff;
 }
 
 function updatePanels() {
@@ -549,6 +531,7 @@ function segGroup(id, cb) { $(id).querySelectorAll("button").forEach(b => b.oncl
   $(id).querySelectorAll("button").forEach(x => x.classList.remove("on")); b.classList.add("on"); cb(b.dataset.v); }); }
 segGroup("mult", v => state.mult = +v);
 segGroup("behavior", v => state.behavior = v);
+segGroup("lang", v => { state.lang = v; lastSpoken = -1; if (RISK) showGeneral(); updatePanels(); });
 // Demo: cycle through the manual weathers every 5 s to show the live update.
 const CYCLE = ["clear", "rain", "heavy", "fog", "snow"];
 let cycleK = 0, cycleTimer = null;
