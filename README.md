@@ -102,7 +102,7 @@ risk = requests.post(f"{B}/risk", json={"segments": segs, "datetime": "2026-10-3
 ```
 
 ## 2-minute demo
-1. **Search a route:** *From* "Blida", *To* "Chréa" (press Enter and pick each place), or load the **Mountain road** preset.
+1. **Search a route:** *From* "Blida", *To* "Chréa" (pick a suggestion, or just press Go), or load the **Mountain road** preset.
 2. **Day vs night:** click **14:00**, then **02:00**. The road turns orange and red, and the phone shows "Whole route ×N now: late at night".
 3. **Drive:** press ▶ at 5×. Before each curve or junction, the phone slides in a short notification, for example "منعطف يساراً بعد 200 م · خفّف إلى 50 🌧 طريق مبلل". Switch Arabic / Français / English with the Language buttons.
 4. **Weather:** choose **🔁 Demo: change every 5 s**. The colours and warnings update live.

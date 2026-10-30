@@ -86,7 +86,7 @@
   <h2>Route</h2>
   <div class="row"><div class="search"><input id="from" placeholder="From: city, place, address…"><div class="results" id="fromRes"></div></div></div>
   <div class="row"><div class="search"><input id="to" placeholder="To: city, place, address…"><div class="results" id="toRes"></div></div><button id="go">Go</button></div>
-  <div class="hint" style="margin-bottom:6px">Type a place and press Enter, then pick it from the list. Or:</div>
+  <div class="hint" style="margin-bottom:6px">Type a place, pick a suggestion or press Go. Or:</div>
   <div class="row"><select id="preset"></select><button id="loadPreset">Load</button></div>
   <div class="row"><button id="pick">Pick start/end on map</button><span class="hint" id="pickHint"></span></div>
 
@@ -168,28 +168,47 @@ map.on("click", async e => {
 });
 
 // ---------- place search ----------
+// Suggestions appear after a short pause in typing (or on Enter). "Go" also works without
+// picking: it takes the first match for each box. Answers are cached on the server.
 const places = { from: null, to: null }, placeMarkers = {};
+async function searchPlace(q) { return api("/geocode?q=" + encodeURIComponent(q)); }
+function pickPlace(id, p) {
+  places[id] = p; $(id).value = p.name.split(",").slice(0, 2).join(","); $(id + "Res").style.display = "none";
+  if (placeMarkers[id]) placeMarkers[id].remove();
+  placeMarkers[id] = L.marker([p.lat, p.lon], { title: id }).addTo(map); map.setView([p.lat, p.lon], 12);
+}
 function setupSearch(id) {
   const inp = $(id), res = $(id + "Res");
-  inp.onkeydown = async e => {
-    if (e.key !== "Enter" || !inp.value.trim()) return;
-    res.style.display = "block"; res.innerHTML = "<div>Searching…</div>";
+  let timer = null, n = 0;
+  const run = async () => {
+    const q = inp.value.trim(), k = ++n;
+    if (q.length < 3) { res.style.display = "none"; return; }
+    res.style.display = "block"; res.innerHTML = "<div>…</div>";
     try {
-      const list = await api("/geocode?q=" + encodeURIComponent(inp.value.trim()));
-      res.innerHTML = list.map((p, k) => `<div data-k="${k}">${p.name}</div>`).join("") || "<div>No place found in Algeria.</div>";
-      res.querySelectorAll("[data-k]").forEach(d => d.onclick = () => {
-        const p = list[+d.dataset.k]; places[id] = p; inp.value = p.name.split(",").slice(0, 2).join(","); res.style.display = "none";
-        if (placeMarkers[id]) placeMarkers[id].remove();
-        placeMarkers[id] = L.marker([p.lat, p.lon], { title: id }).addTo(map); map.setView([p.lat, p.lon], 12);
-        if (places.from && places.to) goSearch();
+      const list = await searchPlace(q);
+      if (k !== n) return;
+      res.innerHTML = list.map((p, j) => `<div data-k="${j}">${p.name}</div>`).join("") || "<div>No place found in Algeria.</div>";
+      res.querySelectorAll("[data-k]").forEach(d => d.onmousedown = e => {
+        e.preventDefault(); pickPlace(id, list[+d.dataset.k]); if (places.from && places.to) goSearch();
       });
     } catch (err) { res.innerHTML = `<div>${err.message}</div>`; }
   };
-  inp.onblur = () => setTimeout(() => res.style.display = "none", 200);
+  inp.oninput = () => { places[id] = null; clearTimeout(timer); timer = setTimeout(run, 700); };
+  inp.onkeydown = e => { if (e.key === "Enter") { clearTimeout(timer); run(); } };
+  inp.onblur = () => setTimeout(() => res.style.display = "none", 150);
 }
-function goSearch() {
-  if (!places.from || !places.to) return status("Pick both places from the search lists first.", true);
-  loadRoute({ start: [places.from.lat, places.from.lon], end: [places.to.lat, places.to.lon] });
+async function goSearch() {
+  try {
+    for (const id of ["from", "to"]) {
+      if (places[id]) continue;
+      const q = $(id).value.trim();
+      if (!q) return status(`Type a place in "${id === "from" ? "From" : "To"}".`, true);
+      const list = await searchPlace(q);
+      if (!list.length) return status(`No place found for "${q}".`, true);
+      pickPlace(id, list[0]);
+    }
+    loadRoute({ start: [places.from.lat, places.from.lon], end: [places.to.lat, places.to.lon] });
+  } catch (e) { status("Search error: " + e.message, true); }
 }
 setupSearch("from"); setupSearch("to"); $("go").onclick = goSearch;
 
