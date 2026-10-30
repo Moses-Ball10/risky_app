@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Road Risk Simulator</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/shared.js"></script>
+<style>
+  :root { --bg:#0f1720; --panel:#16212d; --line:#263646; --text:#e6edf3; --muted:#8aa0b4; --accent:#3fa7ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; }
+  #map { flex:1; height:100vh; }
+  #side { width:400px; height:100vh; overflow-y:auto; background:var(--panel); border-left:1px solid var(--line); padding:12px; }
+  h1 { font-size:17px; margin:0 0 8px; }
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:14px 0 6px; }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+  select, input, button { background:#0d151d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:5px 8px; font:inherit; }
+  button { cursor:pointer; } button:hover { border-color:var(--accent); }
+  button.on { background:var(--accent); color:#000; border-color:var(--accent); }
+  .seg { display:inline-flex; } .seg button { border-radius:0; margin-left:-1px; } .seg button:first-child{border-radius:6px 0 0 6px} .seg button:last-child{border-radius:0 6px 6px 0}
+  #status { color:var(--muted); font-size:12px; min-height:18px; } #status.err { color:#ff7b72; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:4px 10px; font-variant-numeric:tabular-nums; }
+  .grid div span { color:var(--muted); }
+  .big { font-size:28px; font-weight:700; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:10px; font-weight:600; color:#000; }
+  #risknow { display:flex; align-items:center; gap:10px; }
+  .curve { padding:4px 8px; border-radius:6px; background:#0d151d; border:1px solid var(--line); margin:3px 0; }
+  .curve.hit { border-color:#f1c40f; }
+  #reasons li { margin:3px 0; }
+  #chart { width:100%; height:130px; background:#0d151d; border-radius:6px; cursor:pointer; }
+  #mapwrap { position:relative; flex:1; }
+  .search { position:relative; flex:1; } .search input { width:100%; }
+  .results { position:absolute; left:0; right:0; top:100%; z-index:2000; background:#0d151d; border:1px solid var(--line); border-radius:6px; max-height:220px; overflow-y:auto; display:none; }
+  .results div { padding:6px 8px; font-size:12px; cursor:pointer; border-bottom:1px solid var(--line); } .results div:hover { background:#1d2b3a; }
+  #wxcard { background:#0d151d; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13px; }
+  #wxcard b { font-size:15px; }
+  /* phone */
+  #phone { position:absolute; right:16px; bottom:16px; z-index:1000; width:230px; height:440px; background:#000;
+           border-radius:36px; padding:9px; box-shadow:0 0 0 2px #2b3440, 0 20px 50px rgba(0,0,0,.6); }
+  #screen { position:relative; height:100%; border-radius:28px; overflow:hidden; background:linear-gradient(160deg,#1d2b3a,#0b1118); }
+  #notch { position:absolute; top:8px; left:50%; transform:translateX(-50%); width:76px; height:20px; background:#000; border-radius:12px; z-index:3; }
+  #sbar { display:flex; justify-content:space-between; padding:10px 18px 0; font-size:12px; font-weight:600; }
+  #speedo { text-align:center; margin-top:110px; }
+  #speedo b { font-size:54px; font-weight:200; display:block; line-height:1; }
+  #speedo span { font-size:12px; color:var(--muted); }
+  #wxnow { text-align:center; margin-top:10px; font-size:12px; color:var(--muted); padding:0 12px; }
+  #general { margin:12px 12px 0; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,.08); font-size:12px; display:none; }
+  #ok { text-align:center; margin-top:18px; font-size:13px; color:#2ecc71; }
+  #notif { position:absolute; left:8px; right:8px; top:36px; background:rgba(250,250,252,.96); color:#111; border-radius:18px;
+           padding:11px 13px; box-shadow:0 8px 24px rgba(0,0,0,.35); transform:translateY(-140%); opacity:0;
+           transition:transform .35s cubic-bezier(.2,.9,.3,1.2), opacity .25s; z-index:2; }
+  #notif.show { transform:translateY(0); opacity:1; }
+  #notif .app { display:flex; align-items:center; gap:6px; font-size:11px; color:#666; }
+  #notif .dot { width:16px; height:16px; border-radius:5px; display:grid; place-items:center; color:#fff; font-size:10px; }
+  #notif .title { font-size:16px; font-weight:700; margin:6px 0 2px; }
+  #notif .body { font-size:13px; color:#333; }
+  #notif .todo { font-size:13px; font-weight:600; margin-top:6px; }
+  #notif .bar { height:5px; background:#e3e3e8; border-radius:3px; margin-top:9px; overflow:hidden; }
+  #notif .bar i { display:block; height:100%; border-radius:3px; transition:width .2s linear; }
+  .car { width:30px; height:30px; }
+  .legend span { display:inline-block; width:12px; height:12px; border-radius:2px; margin:0 3px 0 8px; vertical-align:-1px; }
+  .hint { color:var(--muted); font-size:12px; }
+  @media (max-width: 800px) { body { flex-direction:column; } #mapwrap{height:55vh;flex:none} #map{height:55vh} #side{width:100%;height:auto} }
+</style>
+</head>
+<body>
+<div id="mapwrap"><div id="map"></div>
+  <div id="phone"><div id="screen">
+    <div id="notch"></div>
+    <div id="sbar"><span id="clock">--:--</span><span><span id="wxicon">☀️</span> 4G</span></div>
+    <div id="notif"><div class="app"><span class="dot" id="ndot">!</span>ROAD RISK · now</div>
+      <div class="title" id="ntitle"></div><div class="body" id="nbody"></div><div class="todo" id="ntodo"></div><div class="bar"><i id="nbar"></i></div></div>
+    <div id="speedo"><b id="kmh">0</b><span>km/h · limit <span id="lim">–</span></span></div>
+    <div id="wxnow"></div>
+    <div id="general"></div>
+    <div id="ok">✓ Road ahead looks normal</div>
+  </div></div>
+</div>
+<div id="side">
+  <h1>🚗 Road Risk Simulator</h1>
+  <div id="status">Loading…</div>
+
+  <h2>Route</h2>
+  <div class="row"><div class="search"><input id="from" placeholder="From: city, place, address…"><div class="results" id="fromRes"></div></div></div>
+  <div class="row"><div class="search"><input id="to" placeholder="To: city, place, address…"><div class="results" id="toRes"></div></div><button id="go">Go</button></div>
+  <div class="hint" style="margin-bottom:6px">Type a place and press Enter, then pick it from the list. Or:</div>
+  <div class="row"><select id="preset"></select><button id="loadPreset">Load</button></div>
+  <div class="row"><button id="pick">Pick start/end on map</button><span class="hint" id="pickHint"></span></div>
+
+  <h2>Simulation</h2>
+  <div class="row">
+    <button id="play">▶ Play</button><button id="reset">⟲</button>
+    <span class="seg" id="mult"><button data-v="1" class="on">1×</button><button data-v="5">5×</button><button data-v="20">20×</button></span>
+  </div>
+  <div class="row">Driver <span class="seg" id="behavior"><button data-v="normal" class="on">Normal</button><button data-v="speeding">Speeding +30%</button><button data-v="aggressive">Aggressive braking</button></span></div>
+  <div class="row"><input type="datetime-local" id="dt"><button id="day">14:00</button><button id="night">02:00</button></div>
+  <div class="row">Weather <select id="weather"><option value="live">Live (Open-Meteo)</option><option value="clear">☀️ Clear</option><option value="rain">🌧 Rain</option><option value="heavy">⛈ Heavy rain</option><option value="fog">🌫 Fog</option><option value="snow">❄️ Snow</option><option value="cycle">🔁 Demo: change every 5 s</option></select></div>
+  <div id="wxcard" class="hint">Load a route to get the weather.</div>
+  <div class="row">Model <select id="model"></select></div>
+  <div class="row">Voice <select id="lang"><option value="off">Off</option><option value="fr">Français</option><option value="ar">العربية</option><option value="en">English</option></select></div>
+
+  <h2>Current risk</h2>
+  <div id="risknow"><span class="big" id="xnow">–</span><span id="lvlnow"></span></div>
+  <div id="rule" class="hint"></div>
+  <h2>Why? (top factors pushing risk up)</h2>
+  <ol id="reasons"></ol>
+
+  <h2>Risk along route</h2>
+  <canvas id="chart"></canvas>
+  <div class="legend hint"><span style="background:#2ecc71"></span>low<span style="background:#f1c40f"></span>medium<span style="background:#e67e22"></span>high<span style="background:#e74c3c"></span>very high</div>
+
+  <h2>Live sensors (simulated phone)</h2>
+  <div class="grid" id="sensors"></div>
+  <h2>Curve detection</h2>
+  <div class="curve" id="curveMap">Map: –</div>
+  <div class="curve" id="curveSensor">Sensors: –</div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LEVEL_NAMES = ["Low", "Medium", "High", "Very high"];
+let CFG = null, ROUTE = null, RISK = null, LINE = null;
+let segLayers = [], carMarker = null, routeBounds = null;
+let state = { mult: 1, behavior: "normal", playing: false };
+let WX = null;   // weather status for the route (fixed rule, not the model)
+let car = null, lastSpoken = -1;
+
+// ---------- utilities ----------
+function status(msg, err) { $("status").textContent = msg; $("status").className = err ? "err" : ""; }
+async function api(path, body) {
+  const r = await fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || `HTTP ${r.status}`);
+  return j;
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const toRad = d => d * Math.PI / 180;
+function hav(a, b) { const R = 6371000, dp = toRad(b[0] - a[0]), dl = toRad(b[1] - a[1]);
+  const x = Math.sin(dp / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dl / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+function brg(a, b) { const p1 = toRad(a[0]), p2 = toRad(b[0]), dl = toRad(b[1] - a[1]);
+  return (Math.atan2(Math.sin(dl) * Math.cos(p2), Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl)) * 180 / Math.PI + 360) % 360; }
+const adiff = (a, b) => ((b - a + 540) % 360) - 180;
+
+class Line {
+  constructor(pts) { this.pts = pts; this.cum = [0]; for (let i = 1; i < pts.length; i++) this.cum.push(this.cum[i - 1] + hav(pts[i - 1], pts[i])); this.length = this.cum[this.cum.length - 1]; }
+  at(s) { s = Math.max(0, Math.min(this.length, s)); let lo = 0, hi = this.cum.length - 1;
+    while (hi - lo > 1) { const m = (lo + hi) >> 1; if (this.cum[m] <= s) lo = m; else hi = m; }
+    const L = this.cum[hi] - this.cum[lo], t = L ? (s - this.cum[lo]) / L : 0, a = this.pts[lo], b = this.pts[hi];
+    return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])]; }
+  heading(s) { return brg(this.at(s - 8), this.at(s + 8)); }
+}
+
+// ---------- map ----------
+const map = L.map("map", { preferCanvas: true }).setView([36.6, 3.0], 10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
+let picking = false, pickPts = [], pickMarkers = [];
+$("pick").onclick = () => { picking = true; pickPts = []; pickMarkers.forEach(m => m.remove()); pickMarkers = []; $("pickHint").textContent = "Click the START point"; };
+map.on("click", async e => {
+  if (!picking) return;
+  pickPts.push([e.latlng.lat, e.latlng.lng]); pickMarkers.push(L.marker(e.latlng).addTo(map));
+  if (pickPts.length === 1) { $("pickHint").textContent = "Click the END point"; return; }
+  picking = false; $("pickHint").textContent = "";
+  await loadRoute({ start: pickPts[0], end: pickPts[1] });
+});
+
+// ---------- place search ----------
+const places = { from: null, to: null }, placeMarkers = {};
+function setupSearch(id) {
+  const inp = $(id), res = $(id + "Res");
+  inp.onkeydown = async e => {
+    if (e.key !== "Enter" || !inp.value.trim()) return;
+    res.style.display = "block"; res.innerHTML = "<div>Searching…</div>";
+    try {
+      const list = await api("/geocode?q=" + encodeURIComponent(inp.value.trim()));
+      res.innerHTML = list.map((p, k) => `<div data-k="${k}">${p.name}</div>`).join("") || "<div>No place found in Algeria.</div>";
+      res.querySelectorAll("[data-k]").forEach(d => d.onclick = () => {
+        const p = list[+d.dataset.k]; places[id] = p; inp.value = p.name.split(",").slice(0, 2).join(","); res.style.display = "none";
+        if (placeMarkers[id]) placeMarkers[id].remove();
+        placeMarkers[id] = L.marker([p.lat, p.lon], { title: id }).addTo(map); map.setView([p.lat, p.lon], 12);
+        if (places.from && places.to) goSearch();
+      });
+    } catch (err) { res.innerHTML = `<div>${err.message}</div>`; }
+  };
+  inp.onblur = () => setTimeout(() => res.style.display = "none", 200);
+}
+function goSearch() {
+  if (!places.from || !places.to) return status("Pick both places from the search lists first.", true);
+  loadRoute({ start: [places.from.lat, places.from.lon], end: [places.to.lat, places.to.lon] });
+}
+setupSearch("from"); setupSearch("to"); $("go").onclick = goSearch;
+
+function levelColor(l) { return CFG.levels[l].color; }
+
+// ---------- data loading ----------
+async function init() {
+  try {
+    CFG = await api("/config");
+    const presets = await api("/presets");
+    $("preset").innerHTML = presets.map(p => `<option value="${p.id}">${p.name}</option>`).join("");
+    const ms = await api("/models");
+    $("model").innerHTML = ms.models.map(m => `<option ${m.file === ms.default ? "selected" : ""}>${m.file}</option>`).join("")
+      || `<option>${ms.default}</option>`;
+    const now = new Date(); now.setMinutes(0, 0, 0);
+    $("dt").value = new Date(now - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    status("Choose a preset route or pick points on the map.");
+  } catch (e) { status("Backend error: " + e.message, true); }
+}
+
+async function loadRoute(body) {
+  status("Fetching route, OpenStreetMap road data and elevation… (first time can take ~30 s)");
+  try {
+    ROUTE = await api("/route", body);
+    LINE = new Line(ROUTE.coords);
+    drawRoute();
+    resetCar();
+    await refreshRisk();
+    const named = ROUTE.segments.filter(s => s.osm.highway === "unclassified" && !s.osm.way_id).length;
+    status(`Route: ${(ROUTE.length / 1000).toFixed(1)} km, ${ROUTE.segments.length} segments.` +
+      (ROUTE.elevation_ok ? "" : " ⚠ Elevation unavailable (slope = unknown).") +
+      (named ? ` ${named} segments without OSM match.` : ""));
+  } catch (e) { status(e.message, true); }
+}
+
+async function refreshRisk() {
+  if (!ROUTE) return;
+  try {
+    const segs = ROUTE.segments.map(s => ({ i: s.i, lat: s.lat, lon: s.lon, features: s.features }));
+    const mid = ROUTE.segments[Math.floor(ROUTE.segments.length / 2)];
+    const [risk, wx] = await Promise.all([
+      api("/risk", { segments: segs, datetime: $("dt").value, weather: "dry", model: $("model").value }),
+      api(`/weather?lat=${mid.lat}&lon=${mid.lon}&at=${encodeURIComponent($("dt").value)}&manual=${wxChoice()}`)
+        .catch(e => ({ error: e.message })),
+    ]);
+    RISK = risk; WX = wx.error ? null : wx;
+    applyWeather(); showWeather(wx.error); findSpots();
+    segLayers.forEach((l, i) => l.setStyle({ color: riskColor(RISK.segments[i].x) }));
+    lastSpoken = -1;
+    drawChart(); updatePanels();
+  } catch (e) { status("Risk error: " + e.message, true); }
+}
+
+// Weather rule: x × factor (bigger on curves and slopes), capped, and at most one level up.
+function applyWeather() {
+  RISK.segments.forEach((r, i) => {
+    r.model_x = r.x; r.model_level = r.level;
+    Object.assign(r, weatherOn(r.model_x, r.model_level, ROUTE.segments[i].features, WX, CFG.levels));
+  });
+}
+function showWeather(err) {
+  if (!WX) { $("wxcard").textContent = "Weather unavailable" + (err ? `: ${err}` : "") + ". Risk uses the model only."; return; }
+  const w = WX, bits = [];
+  if (w.rain_mm) bits.push(`${w.rain_mm} mm/h`);
+  if (w.snow_cm) bits.push(`${w.snow_cm} cm/h snow`);
+  if (w.visibility_m < 5000) bits.push(`visibility ${Math.round(w.visibility_m)} m`);
+  if (w.spell_h) bits.push(`for ${w.spell_h} h`);
+  if (w.since_rain_h) bits.push(`rain stopped ${w.since_rain_h} h ago`);
+  if (w.rain_in_h) bits.push(`rain expected in ${w.rain_in_h} h`);
+  $("wxcard").innerHTML = `<b>${w.icon} ${w.label}</b> <span class="hint">${bits.join(" · ")}</span><br>` +
+    (w.factor > 1 ? `Risk +${Math.round((w.factor - 1) * 100)}% (curves and slopes +${Math.round((w.factor_hard - 1) * 100)}%), at most one level up.`
+                  : "No weather effect on the risk.");
+}
+
+function drawRoute() {
+  segLayers.forEach(l => l.remove()); segLayers = [];
+  ROUTE.segments.forEach((s, i) => {
+    const l = L.polyline(s.coords, { color: "#888", weight: 7, opacity: .9 }).addTo(map);
+    l.on("click", ev => { L.DomEvent.stopPropagation(ev); l.bindPopup(segPopup(i)).openPopup(ev.latlng); });
+    segLayers.push(l);
+  });
+  routeBounds = L.latLngBounds(ROUTE.coords); map.fitBounds(routeBounds, { padding: [30, 30] });
+}
+
+function segPopup(i) {
+  const s = ROUTE.segments[i], r = RISK && RISK.segments[i];
+  const feats = r ? r.model_features : s.features;
+  const rows = Object.entries(feats).map(([k, v]) => `<tr><td>${k}</td><td><b>${v ?? "NaN"}</b></td></tr>`).join("");
+  const reasons = r ? r.top_reasons.map(t => t.text).join(", ") : "";
+  return `<div style="font-size:12px"><b>Segment ${i}</b> · ${(s.s / 1000).toFixed(2)} km · ${s.osm.name || s.osm.highway || ""}<br>
+    ${r ? `<span class="pill" style="background:${levelColor(r.level)}">×${r.x.toFixed(2)} vs average</span> model ×${r.model_x.toFixed(2)}${r.wx > 1 ? `, weather ×${r.wx}` : ""}<br>Main factors: ${reasons}<br>` : ""}
+    turn ${s.turn.toFixed(0)}°, curve speed ${s.curve_speed} km/h, elev ${s.osm.elevation ?? "?"} m${s.osm.vma_default ? " (default speed limit)" : ""}
+    <table>${rows}</table></div>`;
+}
+
+// ---------- car simulation ----------
+const carIcon = h => L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 15],
+  html: `<svg class="car" viewBox="0 0 30 30" style="transform:rotate(${h}deg)"><circle cx="15" cy="15" r="13" fill="#0d151d" stroke="#3fa7ff" stroke-width="2"/><path d="M15 4 L22 23 L15 19 L8 23 Z" fill="#3fa7ff"/></svg>` });
+
+function resetCar() {
+  car = { s: 0, v: 0, simT: 0, acc: 0, heading: LINE.heading(0), hist: [], sensors: null, sensorCurve: null };
+  if (carMarker) carMarker.remove();
+  carMarker = L.marker(LINE.at(0), { icon: carIcon(car.heading), zIndexOffset: 1000 }).addTo(map);
+  setPlaying(false); updatePanels(); drawChart();
+}
+
+const BEHAVIOR = {
+  normal: { factor: 1.0, acc: 1.5, brake: 2.0 },
+  speeding: { factor: 1.3, acc: 2.0, brake: 2.5 },
+  aggressive: { factor: 1.1, acc: 3.0, brake: 6.0 },
+};
+function segAt(s) { // segments are fixed length except the last one
+  let i = Math.min(ROUTE.segments.length - 1, Math.floor(s / (ROUTE.segments[0].length || 50)));
+  while (i > 0 && ROUTE.segments[i].s > s) i--; while (i < ROUTE.segments.length - 1 && ROUTE.segments[i + 1].s <= s) i++; return i;
+}
+
+function targetSpeed() { // m/s, looking ahead so the car brakes before curves
+  const b = BEHAVIOR[state.behavior], i0 = segAt(car.s);
+  let target = Infinity;
+  for (let i = i0; i < ROUTE.segments.length; i++) {
+    const s = ROUTE.segments[i], d = Math.max(0, s.s - car.s);
+    if (d > 400) break;
+    const v = Math.min(s.features.vma, s.curve_speed) * b.factor / 3.6;
+    // aggressive drivers look ahead less, brake late and hard
+    const decel = state.behavior === "aggressive" ? b.brake * 0.9 : b.brake * 0.7;
+    target = Math.min(target, Math.sqrt(v * v + 2 * decel * d));
+  }
+  const remain = LINE.length - car.s;
+  return Math.min(target, Math.sqrt(2 * b.brake * 0.7 * remain));
+}
+
+function step(dt) {
+  const b = BEHAVIOR[state.behavior], tgt = targetSpeed();
+  const dv = tgt - car.v;
+  const a = dv > 0 ? Math.min(b.acc, dv / dt) : Math.max(-b.brake, dv / dt);
+  car.v = Math.max(0, car.v + a * dt); car.acc = a;
+  car.s = Math.min(LINE.length, car.s + car.v * dt);
+  car.heading = LINE.heading(car.s);
+  car.simT += dt;
+  if (car.s >= LINE.length - 0.5) { car.v = 0; setPlaying(false); }
+}
+
+function sensorTick() { // one simulated second
+  const prev = car.hist.length ? car.hist[car.hist.length - 1] : null;
+  const yaw = prev ? adiff(prev.heading, car.heading) / 1.0 : 0;  // deg/s
+  const vel = car.v;
+  const pos = LINE.at(car.s);
+  const mPerDegLat = 111320, mPerDegLon = 111320 * Math.cos(toRad(pos[0])), gpsErr = 3 + Math.random() * 2;
+  car.sensors = {
+    lat: pos[0] + gauss() * gpsErr / mPerDegLat, lon: pos[1] + gauss() * gpsErr / mPerDegLon, acc_m: gpsErr,
+    speed: Math.max(0, vel * 3.6 + gauss() * 1.0),
+    heading: (car.heading + gauss() * 2 + 360) % 360,
+    ax: car.acc / 9.81 + gauss() * 0.02, ay: vel * toRad(yaw) / 9.81 + gauss() * 0.02, az: 1 + gauss() * 0.02,
+    yaw: yaw + gauss() * 0.3,
+  };
+  car.hist.push({ t: car.simT, heading: car.sensors.heading, yaw: car.sensors.yaw, v: vel });
+  if (car.hist.length > 30) car.hist.shift();
+  // curve detection from sensors: heading change over the last 4 s, or sustained yaw rate
+  const w = car.hist.slice(-5);
+  let turn = 0; for (let k = 1; k < w.length; k++) turn += adiff(w[k - 1].heading, w[k].heading);
+  const meanYaw = w.reduce((a, h) => a + h.yaw, 0) / w.length;
+  car.sensorCurve = vel > 3 && (Math.abs(turn) > 15 || Math.abs(meanYaw) > 4)
+    ? { side: turn < 0 ? "left" : "right", turn, yaw: meanYaw } : null;
+}
+
+let lastFrame = null, sensorAcc = 0;
+function frame(ts) {
+  if (!state.playing) { lastFrame = null; return; }
+  if (lastFrame !== null) {
+    let simDt = Math.min(0.1, (ts - lastFrame) / 1000) * state.mult;
+    while (simDt > 0) { const d = Math.min(0.1, simDt); step(d); simDt -= d; sensorAcc += d; if (sensorAcc >= 1) { sensorAcc -= 1; sensorTick(); } }
+    carMarker.setLatLng(LINE.at(car.s)); carMarker.setIcon(carIcon(car.heading));
+    if (!map.getBounds().pad(-0.2).contains(carMarker.getLatLng())) map.panTo(carMarker.getLatLng(), { animate: true });
+    updatePanels(); drawChart();
+  }
+  lastFrame = ts; requestAnimationFrame(frame);
+}
+function setPlaying(p) { state.playing = p; $("play").textContent = p ? "⏸ Pause" : "▶ Play"; if (p) requestAnimationFrame(frame); }
+$("play").onclick = () => { if (!ROUTE) return; if (car.s >= LINE.length - 1) resetCar(); setPlaying(!state.playing); };
+$("reset").onclick = () => ROUTE && resetCar();
+
+// ---------- risk display, personal rule, warnings ----------
+function displayed(i, speedKmh) { // model level + personal speeding rule
+  const r = RISK.segments[i], vma = ROUTE.segments[i].features.vma;
+  const over = speedKmh > vma + CFG.speeding_margin_kmh;
+  return { level: Math.min(3, r.level + (over ? 1 : 0)), over, vma };
+}
+
+function mainReason(i) {
+  const f = ROUTE.segments[i].features, r = RISK.segments[i];
+  const top = r.top_reasons.map(t => t.feature);
+  if (f.plan !== 1 && (top.includes("plan") || Math.abs(ROUTE.segments[i].turn) > 30)) return f.plan === 4 ? "sbend" : "curve";
+  if (f.int === 8) return "rail";
+  if (f.int === 6) return "roundabout";
+  if (f.int !== 1 && top.includes("int")) return "junction";
+  if (r.is_dark && top.includes("is_dark")) return "night";
+  if (f.prof === 3 || f.prof === 4 || (f.prof === 2 && top.includes("prof"))) return "slope";
+  if (top.includes("vma")) return "speedlimit";
+  if (f.plan !== 1) return f.plan === 4 ? "sbend" : "curve";
+  return "generic";
+}
+const TXT = {
+  en: { curve: "Dangerous curve", sbend: "Dangerous bends", rail: "Railway crossing", roundabout: "Roundabout", junction: "Dangerous junction",
+        night: "High-risk zone at night", slope: "Dangerous slope", speedlimit: "High-speed risk zone", generic: "High-risk section",
+        msg: (w, d, x, v) => `${w} in ${d} m, risk ×${x}. Slow down to ${v} km/h.`, rain: "Wet road.", fast: "You are speeding." },
+  fr: { curve: "Virage dangereux", sbend: "Virages dangereux", rail: "Passage à niveau", roundabout: "Rond-point", junction: "Carrefour dangereux",
+        night: "Zone à risque la nuit", slope: "Pente dangereuse", speedlimit: "Zone à risque de vitesse", generic: "Section à risque",
+        msg: (w, d, x, v) => `${w} dans ${d} mètres, risque multiplié par ${x}. Ralentissez à ${v} kilomètres heure.`, rain: "Chaussée mouillée.", fast: "Vous roulez trop vite." },
+  ar: { curve: "منعطف خطير", sbend: "منعطفات خطيرة", rail: "ممر سكة حديد", roundabout: "دوار", junction: "تقاطع خطير",
+        night: "منطقة خطيرة ليلاً", slope: "منحدر خطير", speedlimit: "منطقة سرعة خطيرة", generic: "مقطع خطير",
+        msg: (w, d, x, v) => `${w} بعد ${d} متر، الخطر مضاعف ${x} مرات. خفف السرعة إلى ${v} كيلومتر في الساعة.`, rain: "الطريق مبلل.", fast: "أنت تسرع." },
+};
+
+// Warnings are for SPOTS: risky stretches that stand out from the rest of the route (a curve,
+// a junction, a peak). A risk that covers the whole route (night, weekend...) is shown once
+// on the phone's home screen instead of repeating the same notification.
+let SPOTS = [], BASE = 1;
+function findSpots() {
+  const xs = RISK.segments.map(r => r.x).sort((a, b) => a - b);
+  BASE = xs[Math.floor(xs.length / 2)];
+  SPOTS = [];
+  let cur = null;
+  ROUTE.segments.forEach((sg, i) => {
+    const r = RISK.segments[i];
+    const hot = r.level >= CFG.warning_min_level && (hazard(sg.features) !== "Risky stretch" || r.x >= 1.3 * BASE);
+    if (hot && cur && i === cur.i1 + 1) { cur.i1 = i; if (r.x > RISK.segments[cur.peak].x) cur.peak = i; }
+    else if (hot) { cur = { i0: i, i1: i, peak: i }; SPOTS.push(cur); }
+  });
+  SPOTS.forEach(sp => {   // name the spot after its most specific road feature
+    for (let k = sp.i0; k <= sp.i1; k++) { const n = hazard(ROUTE.segments[k].features); if (n !== "Risky stretch") { sp.name = n; break; } }
+    sp.name = sp.name || "Risk peak";
+  });
+  const g = $("general"), lvl = levelOf(BASE, CFG.levels);
+  if (lvl >= CFG.warning_min_level) {
+    const r = RISK.segments[Math.floor(RISK.segments.length / 2)];
+    const words = [...new Set(r.top_reasons.filter(t => TIME_F.has(t.feature)).map(t => factor(t, r.model_features)).filter(Boolean).map(x => x[0]))];
+    if (WX && WX.factor > 1) WX.reasons.forEach(x => words.push(x.words));
+    g.innerHTML = `<b style="color:${levelColor(lvl)}">Whole route ×${BASE.toFixed(1)}</b> now: ${words.join(", ") || "higher risk"}. Drive carefully.`;
+    g.style.display = "block";
+  } else g.style.display = "none";
+}
+function checkWarning() {
+  const speedKmh = car.v * 3.6, i = segAt(car.s), disp = displayed(i, speedKmh);
+  const sp = SPOTS.find(sp => ROUTE.segments[sp.i1].s + ROUTE.segments[sp.i1].length > car.s);
+  if (sp) {
+    const d = ROUTE.segments[sp.i0].s - car.s;
+    if (d <= CFG.warning_distance_m) return { i: sp.peak, spot: sp, d: Math.max(0, d), level: displayed(sp.peak, speedKmh).level, over: disp.over };
+  }
+  if (disp.over) return { i, spot: null, d: 0, level: disp.level, over: true };
+  return null;
+}
+
+function advisedSpeed(i) {
+  const s = ROUTE.segments[i]; let v = Math.min(s.features.vma, s.curve_speed);
+  v /= Math.sqrt(RISK.segments[i].wx || 1);
+  if (RISK.segments[i].is_dark) v *= 0.9;
+  return Math.max(20, Math.floor(v / 10) * 10);
+}
+
+function showWarning(w) {
+  const N = $("notif");
+  if (!w) { N.classList.remove("show"); $("ok").style.visibility = "visible"; return; }
+  const r = RISK.segments[w.i], f = ROUTE.segments[w.i].features, color = levelColor(w.level), v = advisedSpeed(w.i);
+  const general = levelOf(BASE, CFG.levels) >= CFG.warning_min_level;
+  const fs = r.top_reasons.filter(t => !(general && TIME_F.has(t.feature))).map(t => factor(t, r.model_features)).filter(Boolean);
+  if (r.wx > 1) WX.reasons.forEach(x => fs.push([x.words, x.todo]));
+  if (w.over) fs.unshift(["your speed", null]);
+  const words = [...new Set(fs.map(x => x[0]))].slice(0, 3), todo = [...new Set(fs.map(x => x[1]).filter(Boolean))].slice(0, 2);
+  const name = w.spot ? w.spot.name : `Speeding: limit ${f.vma}`, d = Math.round(w.d / 10) * 10;
+  $("ndot").style.background = color;
+  $("ntitle").textContent = !w.spot || w.d < 15 ? `${name} — now` : `${name} in ${d} m`;
+  $("nbody").textContent = `${w.level >= 3 ? "Danger" : "Caution"} ×${r.x.toFixed(1)}: ${words.join(", ") || "high-risk section"}.`;
+  $("ntodo").textContent = `→ ${v} km/h max` + (todo.length ? " · " + todo.join(" · ") : "");
+  $("nbar").style.width = `${100 - Math.min(100, w.d / CFG.warning_distance_m * 100)}%`;
+  $("nbar").style.background = color;
+  $("ok").style.visibility = "hidden";
+  N.classList.add("show");
+  // speak once per warning zone
+  const lang = $("lang").value, key = mainReason(w.i), x = r.x.toFixed(1), wet = WX && r.wx > 1 && /rain|wet/.test(WX.reasons.map(q => q.words).join());
+  if (lang !== "off" && "speechSynthesis" in window && Math.abs(w.i - lastSpoken) > 6 && state.playing) {
+    lastSpoken = w.i;
+    const L2 = TXT[lang]; let txt = L2.msg(L2[key], Math.round(w.d / 50) * 50, x.replace(".", lang === "fr" ? "," : "."), v);
+    if (w.over) txt = L2.fast + " " + txt;
+    if (wet) txt = L2.rain + " " + txt;
+    const u = new SpeechSynthesisUtterance(txt);
+    u.lang = { fr: "fr-FR", ar: "ar-SA", en: "en-US" }[lang];
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  }
+}
+function phoneStatus(seg) {
+  $("kmh").textContent = Math.round(car.v * 3.6);
+  $("lim").textContent = seg.features.vma;
+  const t = new Date(new Date($("dt").value).getTime() + car.simT * 1000);
+  $("clock").textContent = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  $("wxicon").textContent = WX ? WX.icon : "–";
+  $("wxnow").textContent = WX ? `${WX.icon} ${WX.label}` + (WX.factor > 1 ? ` · risk +${Math.round((WX.factor - 1) * 100)}%` : " · no weather effect")
+                               : "⚠ Weather unavailable (restart the server?)";
+}
+
+function updatePanels() {
+  if (!ROUTE || !car) return;
+  const i = segAt(car.s), seg = ROUTE.segments[i];
+  phoneStatus(seg);
+  if (RISK) {
+    const r = RISK.segments[i], disp = displayed(i, car.v * 3.6);
+    $("xnow").textContent = `×${r.x.toFixed(2)}`;
+    $("xnow").title = `model ×${r.model_x.toFixed(2)} × weather ×${r.wx}`;
+    $("lvlnow").innerHTML = `<span class="pill" style="background:${levelColor(disp.level)}">${LEVEL_NAMES[disp.level]}</span>`;
+    $("rule").textContent = disp.over
+      ? `⬆ Raised one level: you drive ${Math.round(car.v * 3.6)} km/h, limit ${disp.vma} km/h (+${CFG.speeding_margin_kmh} tolerance).`
+      : `Model ×${r.model_x.toFixed(2)}` + (r.wx > 1 ? ` × weather ×${r.wx} (${WX.icon} ${WX.label})` : " · no weather effect") +
+        `. ${r.is_dark ? "🌙 Dark" : "☀️ Daylight"}.`;
+    $("reasons").innerHTML = r.top_reasons.length
+      ? r.top_reasons.map(t => `<li>${t.text} <span class="hint">(+${t.contribution.toFixed(2)})</span></li>`).join("")
+      : "<li class='hint'>No factor raises the risk here.</li>";
+    showWarning(checkWarning());
+  }
+  const s = car.sensors;
+  $("sensors").innerHTML = s ? `
+    <div><span>GPS lat</span> ${s.lat.toFixed(6)}</div><div><span>GPS lon</span> ${s.lon.toFixed(6)}</div>
+    <div><span>GPS accuracy</span> ±${s.acc_m.toFixed(1)} m</div><div><span>Speed</span> <b>${s.speed.toFixed(1)}</b> km/h</div>
+    <div><span>Heading</span> ${s.heading.toFixed(0)}°</div><div><span>Yaw rate</span> ${s.yaw.toFixed(1)} °/s</div>
+    <div><span>Acc x (long.)</span> ${s.ax.toFixed(2)} g</div><div><span>Acc y (lat.)</span> ${s.ay.toFixed(2)} g</div>
+    <div><span>Acc z</span> ${s.az.toFixed(2)} g</div><div><span>Limit</span> ${seg.features.vma} km/h</div>
+    <div><span>Sim time</span> ${fmtT(car.simT)}</div><div><span>Distance</span> ${(car.s / 1000).toFixed(2)} km</div>`
+    : `<div class="hint">Press play to start the sensors.</div>`;
+  const pm = { 1: null, 2: "left curve", 3: "right curve", 4: "S-bend" }[seg.features.plan];
+  $("curveMap").textContent = `🗺 From map: ${pm ? pm + ` (${Math.abs(seg.turn).toFixed(0)}° over 150 m)` : "straight"}`;
+  $("curveMap").className = "curve" + (pm ? " hit" : "");
+  const sc = car.sensorCurve;
+  $("curveSensor").textContent = `📱 Detected by sensors: ${sc ? `${sc.side} curve (heading ${sc.turn.toFixed(0)}° in 4 s, yaw ${sc.yaw.toFixed(1)}°/s)` : "none"}`;
+  $("curveSensor").className = "curve" + (sc ? " hit" : "");
+}
+const fmtT = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+
+// ---------- chart ----------
+function drawChart() {
+  const c = $("chart"), ctx = c.getContext("2d"), dpr = devicePixelRatio || 1;
+  c.width = c.clientWidth * dpr; c.height = c.clientHeight * dpr; ctx.scale(dpr, dpr);
+  const W = c.clientWidth, H = c.clientHeight, pad = 18;
+  ctx.clearRect(0, 0, W, H);
+  if (!ROUTE || !RISK) return;
+  const maxX = Math.max(4, ...RISK.segments.map(r => r.x));
+  const y = x => H - pad - (Math.log1p(x) / Math.log1p(maxX)) * (H - 2 * pad);
+  ROUTE.segments.forEach((s, i) => {
+    const r = RISK.segments[i], x0 = s.s / ROUTE.length * W, x1 = (s.s + s.length) / ROUTE.length * W;
+    ctx.fillStyle = riskColor(r.x); ctx.fillRect(x0, y(r.x), Math.max(1, x1 - x0), H - pad - y(r.x));
+  });
+  ctx.strokeStyle = "#8aa0b4"; ctx.setLineDash([3, 3]); ctx.beginPath(); ctx.moveTo(0, y(1)); ctx.lineTo(W, y(1)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = "#8aa0b4"; ctx.font = "10px system-ui"; ctx.fillText("×1 average", 4, y(1) - 3);
+  ctx.fillText("0 km", 2, H - 4); ctx.fillText(`${(ROUTE.length / 1000).toFixed(1)} km`, W - 40, H - 4);
+  if (car) { const cx = car.s / ROUTE.length * W; ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H - pad); ctx.stroke(); ctx.lineWidth = 1; }
+}
+$("chart").onclick = e => { if (!ROUTE) return; const r = $("chart").getBoundingClientRect();
+  car.s = (e.clientX - r.left) / r.width * ROUTE.length; car.hist = []; carMarker.setLatLng(LINE.at(car.s)); updatePanels(); drawChart(); };
+
+// ---------- controls ----------
+function segGroup(id, cb) { $(id).querySelectorAll("button").forEach(b => b.onclick = () => {
+  $(id).querySelectorAll("button").forEach(x => x.classList.remove("on")); b.classList.add("on"); cb(b.dataset.v); }); }
+segGroup("mult", v => state.mult = +v);
+segGroup("behavior", v => state.behavior = v);
+// Demo: cycle through the manual weathers every 5 s to show the live update.
+const CYCLE = ["clear", "rain", "heavy", "fog", "snow"];
+let cycleK = 0, cycleTimer = null;
+const wxChoice = () => $("weather").value === "cycle" ? CYCLE[cycleK] : $("weather").value;
+$("weather").onchange = () => {
+  clearInterval(cycleTimer); cycleTimer = null;
+  if ($("weather").value === "cycle") { cycleK = 0; cycleTimer = setInterval(() => { cycleK = (cycleK + 1) % CYCLE.length; refreshRisk(); }, 5000); }
+  refreshRisk();
+};
+$("dt").onchange = refreshRisk;
+$("model").onchange = refreshRisk;
+const setHour = h => { $("dt").value = $("dt").value.slice(0, 11) + h; refreshRisk(); };
+$("day").onclick = () => setHour("14:00"); $("night").onclick = () => setHour("02:00");
+$("loadPreset").onclick = () => loadRoute({ preset: $("preset").value });
+window.addEventListener("resize", drawChart);
+init();
+</script>
+</body>
+</html>

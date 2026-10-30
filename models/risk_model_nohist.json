@@ -1,0 +1,32 @@
+{
+  "features": [
+    "catr",
+    "plan",
+    "vma",
+    "int",
+    "agg",
+    "circ",
+    "nbv",
+    "prof",
+    "infra",
+    "hour",
+    "weekday",
+    "month",
+    "is_weekend",
+    "is_dark"
+  ],
+  "categorical": [
+    "catr",
+    "plan",
+    "int",
+    "agg",
+    "circ",
+    "prof",
+    "infra"
+  ],
+  "with_weather": false,
+  "with_history": false,
+  "test_auc": 0.7991,
+  "top10_capture": 0.3143,
+  "top20_capture": 0.5121
+}

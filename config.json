@@ -1,0 +1,53 @@
+{
+  "model_file": "risk_model_nohist.txt",
+  "models_dir": "models",
+  "base_rate": 0.2,
+  "levels": [
+    {"name": "low",       "max": 0.7,  "color": "#2ecc71"},
+    {"name": "medium",    "max": 1.5,  "color": "#f1c40f"},
+    {"name": "high",      "max": 3.0,  "color": "#e67e22"},
+    {"name": "very_high", "max": null, "color": "#e74c3c"}
+  ],
+  "segment_length_m": 50,
+  "plan": {"window_m": 150, "straight_deg": 15, "sbend_window_m": 300},
+  "prof": {"grade_pct": 4, "grade_window_m": 100, "peak_window_m": 150, "peak_prominence_m": 3},
+  "curve_lateral_accel_ms2": 2.5,
+  "dark_sun_elevation_deg": 0,
+  "timezone": "Africa/Algiers",
+  "holidays_mmdd": ["01-01", "01-12", "05-01", "07-05", "11-01"],
+  "default_maxspeed": {
+    "motorway": 120, "motorway_link": 80, "trunk": 100, "trunk_link": 70,
+    "primary": 80, "primary_link": 60, "secondary": 80, "secondary_link": 60,
+    "tertiary": 60, "tertiary_link": 50, "unclassified": 50, "residential": 40,
+    "living_street": 20, "service": 30, "road": 50
+  },
+  "maxspeed_zones": {"urban": 50, "rural": 80, "motorway": 120, "trunk": 100, "living_street": 20, "walk": 10},
+  "default_lanes": {"motorway": 2, "trunk": 2, "primary": 2, "secondary": 2, "tertiary": 2, "default": 2},
+  "weather_features": {
+    "dry":  {"rain_mm": 0.0, "rain_3h_mm": 0.0, "is_rain": 0, "is_snow": 0, "is_storm": 0, "is_fog": 0},
+    "rain": {"rain_mm": 2.5, "rain_3h_mm": 6.0, "is_rain": 1, "is_snow": 0, "is_storm": 0, "is_fog": 0}
+  },
+  "weather_rule": {
+    "cap": 1.5, "hard_mult": 1.3,
+    "rain_light": 0.1, "rain": 0.15, "rain_heavy": 0.25, "long_spell": 0.05, "first_rain": 0.1, "still_wet": 0.08,
+    "fog": 0.15, "fog_dense": 0.3, "snow": 0.3, "snow_heavy": 0.4, "wind": 0.08
+  },
+  "speeding_margin_kmh": 10,
+  "warning_distance_m": 500,
+  "warning_min_level": 2,
+  "apis": {
+    "osrm": "https://router.project-osrm.org/route/v1/driving",
+    "overpass": ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"],
+    "elevation": "https://api.open-meteo.com/v1/elevation",
+    "weather": "https://api.open-meteo.com/v1/forecast",
+    "geocode": "https://nominatim.openstreetmap.org/search",
+    "timeout_s": 90
+  },
+  "user_agent": "SolveX-RoadRisk-Demo/1.0 (hackathon demo)",
+  "cache_dir": "cache",
+  "presets": [
+    {"id": "chrea",  "name": "Mountain road: Blida → Chréa", "start": [36.4700, 2.8277], "end": [36.4275, 2.8880]},
+    {"id": "rn1",    "name": "National road RN1: Algiers → Blida", "start": [36.7538, 3.0588], "end": [36.4700, 2.8277]},
+    {"id": "urban",  "name": "Urban Algiers: Place des Martyrs → Hydra", "start": [36.7856, 3.0603], "end": [36.7417, 3.0228]}
+  ]
+}
