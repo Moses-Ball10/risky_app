@@ -20,6 +20,7 @@ const I18N = {
          speedlim: ["high speed limit", "Stay under the limit"], town: ["town traffic", "Watch for pedestrians"], open: ["open road", null],
          rain: ["wet road", "Keep double distance"], heavy: ["heavy rain", "Keep double distance"], first_rain: ["slippery road", "Keep double distance"],
          still_wet: ["wet road", "Keep double distance"], fog: ["fog", "Lights on"], snow: ["snow", "Brake gently"], wind: ["strong wind", "Hold the wheel"] },
+    nowWord: "now", m: "m",
     in: (n, d) => `${n} in ${d} m`, now: n => `${n} — now`, slow: v => `Slow to ${v}`,
     whole: (x, w) => `Whole route ×${x}${w ? ": " + w : ""}`, normal: "✓ Road ahead looks normal", limit: "limit",
     noWx: "no weather effect", wxOff: "⚠ Weather unavailable",
@@ -38,6 +39,7 @@ const I18N = {
          speedlim: ["vitesse élevée", "Respectez la limite"], town: ["circulation urbaine", "Attention aux piétons"], open: ["route ouverte", null],
          rain: ["route mouillée", "Doublez la distance"], heavy: ["forte pluie", "Doublez la distance"], first_rain: ["route glissante", "Doublez la distance"],
          still_wet: ["route mouillée", "Doublez la distance"], fog: ["brouillard", "Allumez les feux"], snow: ["neige", "Freinez doucement"], wind: ["vent fort", "Tenez bien le volant"] },
+    nowWord: "maintenant", m: "m",
     in: (n, d) => `${n} dans ${d} m`, now: n => `${n} — maintenant`, slow: v => `Ralentir à ${v}`,
     whole: (x, w) => `Tout le trajet ×${x}${w ? " : " + w : ""}`, normal: "✓ Route normale devant", limit: "limite",
     noWx: "sans effet météo", wxOff: "⚠ Météo indisponible",
@@ -56,6 +58,7 @@ const I18N = {
          speedlim: ["سرعة عالية", "التزم بالحد"], town: ["حركة المدينة", "انتبه للمشاة"], open: ["طريق مفتوح", null],
          rain: ["طريق مبلل", "ضاعف المسافة"], heavy: ["أمطار غزيرة", "ضاعف المسافة"], first_rain: ["طريق زلق", "ضاعف المسافة"],
          still_wet: ["طريق مبلل", "ضاعف المسافة"], fog: ["ضباب", "شغّل الأضواء"], snow: ["ثلج", "فرمل بلطف"], wind: ["رياح قوية", "أمسك المقود جيداً"] },
+    nowWord: "الآن", m: "م",
     in: (n, d) => `${n} بعد ${d} م`, now: n => `${n} — الآن`, slow: v => `خفّف إلى ${v}`,
     whole: (x, w) => `كامل الطريق ×${x}${w ? ": " + w : ""}`, normal: "✓ الطريق أمامك عادي", limit: "الحد",
     noWx: "بدون تأثير الطقس", wxOff: "⚠ الطقس غير متوفر",
@@ -71,7 +74,7 @@ function hazardKey(f) {
       || { 2: "slope", 3: "hilltop", 4: "dip" }[f.prof] || null;
 }
 const hazard = (f, lang = "en") => tr(lang).spot[hazardKey(f) || "risky"];
-const HAZARD_ICON = { crossroads: "✚", t: "⊤", y: "⑂", big: "✚", roundabout: "⟳", rail: "🚆", left: "↰", right: "↱", bends: "〰",
+const HAZARD_ICON = { crossroads: "✚", t: "✚", y: "✚", big: "✚", roundabout: "⟳", rail: "🚆", left: "↰", right: "↱", bends: "〰",
                       tunnel: "◠", bridge: "🌉", works: "🚧", slope: "⛰", hilltop: "⛰", dip: "⌄", risky: "!", speeding: "⚡" };
 
 // A factor the model blames -> key (or null). t = {feature, value?}; row = that segment's model inputs.
